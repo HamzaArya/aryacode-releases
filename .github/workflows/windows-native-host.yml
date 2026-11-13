@@ -1,0 +1,24 @@
+name: Windows native host
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify native Windows tooling
+        shell: pwsh
+        run: |
+          Write-Output "PowerShell version:"
+          $PSVersionTable.PSVersion
+          Write-Output "Node version:"
+          node --version
+          Write-Output "Operating system:"
+          [System.Environment]::OSVersion.VersionString
+          Write-Output "Architecture:"
+          [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
