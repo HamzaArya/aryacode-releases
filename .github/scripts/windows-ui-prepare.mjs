@@ -1,0 +1,33 @@
+// Copyright 2026 Hamza Arya. Verify the published artifact before executing it.
+import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { access, appendFile, mkdir, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { inputs, repository, requireDraft, run } from './shared.mjs';
+
+const { sourceCommit, releaseTag } = inputs();
+if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('Interface acceptance requires a native Windows x64 host.');
+const expected = process.env.PACKAGE_SHA;
+if (!/^[a-f0-9]{64}$/.test(expected ?? '')) throw new Error('Pin the expected Windows ZIP SHA-256.');
+await requireDraft(releaseTag);
+const version = process.env.ARYA_RELEASE_VERSION;
+const filename = `AryaCode-${version}-Windows-x64.zip`;
+const directory = join(process.env.RUNNER_TEMP, 'arya-ui-package'); await mkdir(directory, { recursive: true });
+await run('gh', ['release', 'download', releaseTag, '--repo', repository, '--pattern', filename, '--pattern', 'release-windows.json', '--pattern', 'SHA256SUMS-Windows.txt', '--dir', directory], { timeoutMs: 900_000, failureMessage: 'Verified Windows package download failed.' });
+const receiptPath = join(directory, 'release-windows.json');
+const receipt = JSON.parse(await readFile(receiptPath, 'utf8'));
+if (receipt.version !== version || receipt.sourceCommit !== sourceCommit || receipt.artifact !== filename || receipt.sha256 !== expected || receipt.architecture !== 'x64' || !receipt.portableDistribution || !receipt.executableSmokeVerification) throw new Error('Windows ZIP receipt does not match the requested source and artifact.');
+const archive = join(directory, filename), hash = createHash('sha256');
+for await (const chunk of createReadStream(archive)) hash.update(chunk);
+if (hash.digest('hex') !== expected) throw new Error('Downloaded Windows ZIP checksum mismatch.');
+if (!(await readFile(join(directory, 'SHA256SUMS-Windows.txt'), 'utf8')).split(/\r?\n/).some(line => line === `${expected}  ${filename}`)) throw new Error('The published checksum manifest differs from the verified ZIP.');
+const entries = (await run('tar', ['-tf', archive])).split(/\r?\n/).filter(Boolean);
+if (!entries.length || entries.some(entry => { const normalized = entry.replaceAll('\\', '/').replace(/^\.\//, ''); return !normalized.startsWith('AryaCode-win32-x64/') || normalized.split('/').includes('..'); })) throw new Error('Unexpected Windows ZIP layout.');
+await run('tar', ['-xf', archive, '-C', directory], { timeoutMs: 300_000, failureMessage: 'Windows ZIP extraction failed.' });
+const root = join(directory, 'AryaCode-win32-x64'), executable = join(root, 'AryaCode.exe');
+await access(executable);
+const product = JSON.parse(await readFile(join(root, 'resources/app/product.json'), 'utf8'));
+if (product.aryaVersion !== version || product.nameShort !== 'Arya Code') throw new Error('Packaged application identity differs from the release.');
+await appendFile(process.env.GITHUB_ENV, `ARYA_PACKAGED_ROOT=${root}\nARYA_PACKAGED_EXE=${executable}\nARYA_PACKAGE_RECEIPT=${receiptPath}\nARYA_PACKAGE_SHA=${expected}\n`);
+await rm(archive);
+console.log(`Verified Windows ZIP and packaged identity for source ${sourceCommit}.`);

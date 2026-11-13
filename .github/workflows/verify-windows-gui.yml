@@ -1,0 +1,100 @@
+name: Verify packaged Windows interface
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Draft encrypted source transfer tag
+        required: true
+        type: string
+      source_sha:
+        description: Encrypted source SHA-256
+        required: true
+        type: string
+      source_commit:
+        description: Exact source commit matching the packaged ZIP
+        required: true
+        type: string
+      release_tag:
+        description: Existing draft desktop release
+        required: true
+        default: v2.0.0
+        type: string
+      package_sha:
+        description: Expected SHA-256 of the Windows ZIP
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.actor == 'HamzaArya'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      SOURCE_TAG: ${{ inputs.source_tag }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      PACKAGE_SHA: ${{ inputs.package_sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Restore matching authenticated source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARYA_BUILD_SOURCE_KEY: ${{ secrets.ARYA_BUILD_SOURCE_KEY }}
+        run: node .github/scripts/prepare-source.mjs
+      - name: Download and verify packaged Windows ZIP
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/windows-ui-prepare.mjs
+      - name: Install locked test dependencies
+        shell: pwsh
+        run: node .github/scripts/windows-ui-run.mjs install
+      - name: Compile unchanged application test sources
+        shell: pwsh
+        run: node .github/scripts/windows-ui-run.mjs build
+      - name: Verify packaged Live Server and workspace lifecycle
+        shell: pwsh
+        run: node .github/scripts/windows-ui-run.mjs servers
+      - name: Verify packaged Motion Library interface
+        shell: pwsh
+        run: node .github/scripts/windows-ui-run.mjs motion
+      - name: Publish packaged interface acceptance receipt
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/windows-ui-publish.mjs
+      - name: Retain protected failure diagnostics
+        if: failure()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARYA_BUILD_SOURCE_KEY: ${{ secrets.ARYA_BUILD_SOURCE_KEY }}
+        run: node .github/scripts/retain-diagnostics.mjs
+      - name: Remove restored source and extracted package
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($directory in @($env:ARYA_SOURCE_DIR, $env:ARYA_PACKAGED_ROOT)) {
+            if ($directory -and (Test-Path -LiteralPath $directory)) {
+              for ($attempt = 0; $attempt -lt 5; $attempt++) {
+                try {
+                  Remove-Item -LiteralPath $directory -Recurse -Force -ErrorAction Stop
+                  break
+                } catch {
+                  if ($attempt -eq 4) { throw }
+                  Start-Sleep -Seconds 1
+                }
+              }
+            }
+          }
