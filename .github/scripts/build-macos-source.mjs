@@ -3,6 +3,7 @@ import { createWriteStream } from 'node:fs';
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { inputs } from './shared.mjs';
+import { fileURLToPath } from 'node:url';
 
 inputs();
 if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('Build and verify this package on native Apple silicon macOS.');
@@ -22,7 +23,7 @@ const phases = {
   'native-extension': { args: ['scripts/test-workbench.mjs', '--arya-native'], minutes: 8, direct: true, test: true },
   'servers-extension': { args: ['scripts/test-workbench.mjs', '--servers'], minutes: 6, direct: true, test: true },
   'motion-extension': { args: ['scripts/test-workbench.mjs', '--motion'], minutes: 6, direct: true, test: true },
-  package: { args: ['run', 'release:mac'], minutes: 60 },
+  package: { args: [join(dirname(fileURLToPath(import.meta.url)), 'package-macos-prepared.mjs')], minutes: 60, direct: true },
 };
 const name = process.argv[2], phase = phases[name];
 if (!phase || process.argv.length !== 3) throw new Error('Choose one supported macOS build phase.');

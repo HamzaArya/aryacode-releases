@@ -47,6 +47,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24'
+      - name: Verify packaging input preparation
+        run: node --test .github/scripts/package-macos-prepared.test.mjs
       - name: Restore authenticated encrypted source
         env:
           GH_TOKEN: ${{ github.token }}
