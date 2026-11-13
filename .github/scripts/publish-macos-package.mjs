@@ -28,7 +28,7 @@ const native = JSON.parse(await readFile(join(source, '.build/evidence/arya-nati
 const servers = JSON.parse(await readFile(join(source, '.build/evidence/local-server-workbench.json'), 'utf8'));
 const motion = JSON.parse(await readFile(join(source, '.build/evidence/motion-workbench.json'), 'utf8'));
 if (native.passed !== true || servers.status !== 'passed' || servers.platform !== 'darwin' || motion.status !== 'passed' || motion.version !== version) throw new Error('Native language, server and motion extension-host acceptance evidence is incomplete.');
-await writeFile(evidencePath, JSON.stringify({ ...evidence, bytes: (await stat(join(output, filename))).size, platformAcceptance: { runner: 'macos-15', architecture: 'arm64', nativeExtensionHost: true, liveServerExtensionHost: true, motionExtensionHost: true, runId: process.env.GITHUB_RUN_ID } }, null, 2) + '\n');
+await writeFile(evidencePath, JSON.stringify({ ...evidence, bytes: (await stat(join(output, filename))).size, minimumOSVersion: '26.0', nativeMinimumOSVersion: '26.0', platformAcceptance: { runner: 'macos-26', architecture: 'arm64', nativeExtensionHost: true, liveServerExtensionHost: true, motionExtensionHost: true, runId: process.env.GITHUB_RUN_ID } }, null, 2) + '\n');
 await requireDraft(releaseTag);
 await run('gh', ['release', 'upload', releaseTag, '--repo', repository, '--clobber', ...[filename, 'SHA256SUMS.txt', 'release.json', inventoryName].map(file => join(output, file))], { timeoutMs: 1_800_000, failureMessage: 'Verified macOS release upload failed.' });
 console.log(`Uploaded verified macOS arm64 package for ${sourceCommit} to draft ${releaseTag}. The release remains a draft.`);
