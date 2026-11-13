@@ -62,6 +62,10 @@ jobs:
         run: node .github/scripts/build-macos-source.mjs tools
       - name: Fetch pinned editor source
         run: node .github/scripts/build-macos-source.mjs editor-source
+      - name: Prefetch verified search runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/prepare-search-runtime.mjs
       - name: Prepare editor dependencies
         run: node .github/scripts/build-macos-source.mjs editor-setup
       - name: Compile editor source
