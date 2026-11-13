@@ -1,0 +1,36 @@
+name: Restore protected macOS diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Existing draft source transfer tag
+        required: true
+        type: string
+      diagnostic_run_id:
+        description: macOS build run ID
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    if: github.actor == 'HamzaArya'
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Restore diagnostics only to protected draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARYA_BUILD_SOURCE_KEY: ${{ secrets.ARYA_BUILD_SOURCE_KEY }}
+          SOURCE_TAG: ${{ inputs.source_tag }}
+          DIAGNOSTIC_RUN_ID: ${{ inputs.diagnostic_run_id }}
+        run: node .github/scripts/restore-macos-diagnostics.mjs

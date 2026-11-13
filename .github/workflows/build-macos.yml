@@ -1,0 +1,94 @@
+name: Build macOS desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: Draft transfer release containing arya-source.bundle.enc
+        required: true
+        type: string
+      source_sha:
+        description: SHA-256 of the encrypted source bundle
+        required: true
+        type: string
+      source_commit:
+        description: Exact 40-character source commit
+        required: true
+        type: string
+      release_tag:
+        description: Existing draft release for verified desktop assets
+        required: true
+        default: v2.0.0
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arya-macos-desktop
+  cancel-in-progress: false
+
+jobs:
+  macos:
+    if: github.actor == 'HamzaArya'
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      SOURCE_TAG: ${{ inputs.source_tag }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      NODE_OPTIONS: --max-old-space-size=4096
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Restore authenticated encrypted source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARYA_BUILD_SOURCE_KEY: ${{ secrets.ARYA_BUILD_SOURCE_KEY }}
+        run: node .github/scripts/prepare-source.mjs
+      - name: Install application dependencies
+        run: node .github/scripts/build-macos-source.mjs install
+      - name: Check application source
+        run: node .github/scripts/build-macos-source.mjs check
+      - name: Fetch pinned native tools
+        run: node .github/scripts/build-macos-source.mjs tools
+      - name: Fetch pinned editor source
+        run: node .github/scripts/build-macos-source.mjs editor-source
+      - name: Prepare editor dependencies
+        run: node .github/scripts/build-macos-source.mjs editor-setup
+      - name: Compile editor source
+        run: node .github/scripts/build-macos-source.mjs editor-compile
+      - name: Prepare local server tools
+        run: node .github/scripts/build-macos-source.mjs server-tools
+      - name: Build native Apple silicon application
+        run: node .github/scripts/build-macos-source.mjs application
+      - name: Verify native Arya extension host
+        run: node .github/scripts/build-macos-source.mjs native-extension
+      - name: Verify Live Server extension host
+        run: node .github/scripts/build-macos-source.mjs servers-extension
+      - name: Verify Motion Library extension host
+        run: node .github/scripts/build-macos-source.mjs motion-extension
+      - name: Package and verify portable DMG
+        run: node .github/scripts/build-macos-source.mjs package
+      - name: Upload verified macOS assets to draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/publish-macos-package.mjs
+      - name: Retain encrypted build diagnostics
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARYA_BUILD_SOURCE_KEY: ${{ secrets.ARYA_BUILD_SOURCE_KEY }}
+        run: node .github/scripts/retain-macos-diagnostics.mjs
+      - name: Remove restored source
+        if: always()
+        run: |
+          if [ -n "${ARYA_SOURCE_DIR:-}" ] && [ -d "$ARYA_SOURCE_DIR" ]; then
+            rm -rf -- "$ARYA_SOURCE_DIR"
+          fi
