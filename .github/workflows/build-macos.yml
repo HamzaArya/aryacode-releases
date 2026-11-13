@@ -54,6 +54,8 @@ jobs:
         run: node .github/scripts/prepare-source.mjs
       - name: Install application dependencies
         run: node .github/scripts/build-macos-source.mjs install
+      - name: Prepare bundled Arya SDK and extensions
+        run: node .github/scripts/build-macos-source.mjs extensions
       - name: Check application source
         run: node .github/scripts/build-macos-source.mjs check
       - name: Fetch pinned native tools

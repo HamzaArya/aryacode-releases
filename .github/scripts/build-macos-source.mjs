@@ -11,6 +11,7 @@ if (!isAbsolute(source ?? '') || !isAbsolute(logs ?? '')) throw new Error('Authe
 const executable = join(source, '.build/desktop/AryaCode.app/Contents/MacOS/AryaCode');
 const phases = {
   install: { args: ['ci'], minutes: 20 },
+  extensions: { args: ['run', 'build'], minutes: 10 },
   check: { args: ['run', 'check'], minutes: 25 },
   tools: { args: ['run', 'tools:fetch'], minutes: 25 },
   'editor-source': { args: ['run', 'upstream:fetch'], minutes: 20 },

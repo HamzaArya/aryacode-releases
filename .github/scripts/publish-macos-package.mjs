@@ -23,7 +23,7 @@ const inventoryName = `AryaCode-${version}-dependency-inventory.json`;
 const inventory = JSON.parse(await readFile(join(output, inventoryName), 'utf8'));
 if (inventory.version !== version || inventory.architecture !== 'arm64' || !Array.isArray(inventory.packages) || !inventory.packages.length) throw new Error('macOS dependency inventory is incomplete.');
 const summaries = JSON.parse(await readFile(join(process.env.ARYA_BUILD_LOG_DIR, 'summary.json'), 'utf8'));
-for (const phase of ['install', 'check', 'tools', 'editor-source', 'editor-setup', 'editor-compile', 'server-tools', 'application', 'native-extension', 'servers-extension', 'motion-extension', 'package']) if (!summaries.some(item => item.phase === phase && item.exitCode === 0)) throw new Error('A required macOS build or acceptance phase has not passed.');
+for (const phase of ['install', 'extensions', 'check', 'tools', 'editor-source', 'editor-setup', 'editor-compile', 'server-tools', 'application', 'native-extension', 'servers-extension', 'motion-extension', 'package']) if (!summaries.some(item => item.phase === phase && item.exitCode === 0)) throw new Error('A required macOS build or acceptance phase has not passed.');
 const native = JSON.parse(await readFile(join(source, '.build/evidence/arya-native-workbench.json'), 'utf8'));
 const servers = JSON.parse(await readFile(join(source, '.build/evidence/local-server-workbench.json'), 'utf8'));
 const motion = JSON.parse(await readFile(join(source, '.build/evidence/motion-workbench.json'), 'utf8'));
