@@ -50,9 +50,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ARYA_BUILD_SOURCE_KEY: ${{ secrets.ARYA_BUILD_SOURCE_KEY }}
         run: node .github/scripts/prepare-source.mjs
-      - name: Build and verify Windows desktop
+      - name: Install locked application dependencies
         shell: pwsh
-        run: node .github/scripts/build-source.mjs
+        run: node .github/scripts/build-source.mjs install
+      - name: Check application sources and tests
+        shell: pwsh
+        run: node .github/scripts/build-source.mjs check
+      - name: Fetch pinned native build tools
+        shell: pwsh
+        run: node .github/scripts/build-source.mjs tools
+      - name: Fetch pinned editor source
+        shell: pwsh
+        run: node .github/scripts/build-source.mjs editor-source
+      - name: Prepare editor dependencies
+        shell: pwsh
+        run: node .github/scripts/build-source.mjs editor-setup
+      - name: Compile editor engine
+        shell: pwsh
+        run: node .github/scripts/build-source.mjs editor-compile
+      - name: Assemble and verify Windows desktop package
+        shell: pwsh
+        run: node .github/scripts/build-source.mjs desktop-package
       - name: Upload verified package to draft release
         shell: pwsh
         env:

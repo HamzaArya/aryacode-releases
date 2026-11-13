@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createWriteStream } from 'node:fs';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
 import { inputs } from './shared.mjs';
 
@@ -10,8 +10,11 @@ if (!isAbsolute(source ?? '') || !isAbsolute(logs ?? '')) throw new Error('Authe
 await mkdir(logs, { recursive: true });
 const npm = join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'); await access(npm);
 const phases = [['install', ['ci'], 20], ['check', ['run', 'check'], 20], ['tools', ['run', 'tools:fetch'], 25], ['editor-source', ['run', 'upstream:fetch'], 15], ['editor-setup', ['run', 'upstream:setup'], 45], ['editor-compile', ['run', 'upstream:compile'], 40], ['desktop-package', ['run', 'release:windows'], 60]];
-const summary = [];
-for (const [name, args, minutes] of phases) {
+const selected = process.argv[2];
+if (selected && !phases.some(([name]) => name === selected)) throw new Error('Choose a supported Windows build phase.');
+let summary = [];
+try { summary = JSON.parse(await readFile(join(logs, 'summary.json'), 'utf8')); } catch { /* First phase starts a new summary. */ }
+for (const [name, args, minutes] of selected ? phases.filter(([name]) => name === selected) : phases) {
   console.log(`Starting Windows build phase: ${name}`);
   const started = Date.now();
   const output = createWriteStream(join(logs, `${name}.log`), { mode: 0o600 });
